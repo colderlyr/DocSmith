@@ -62,6 +62,21 @@ For each heading level, collect:
 - **First-line indent**: e.g., 2 characters, 0.5 inch, none
 - **Alignment**: e.g., justified (两端对齐), left
 
+### 1.6 References (参考文献)
+
+- Ask: "Do you need a references section at the end of the document?"
+- If yes: generate 3-5 references in **GB/T 7714** format based on the document topic
+- Format references in the content markdown as:
+  ```
+  ## 参考文献
+
+  [1] Author. Title[J]. Journal, Year, Volume(Issue): Pages.
+  [2] Author. Title[C]//Conference, Year.
+  [3] Author. Title[M]. Publisher, Year.
+  ```
+- "参考文献" heading will be rendered as **Heading 1** style (黑体, 三号, black, no indent)
+- Each reference entry uses hanging indent (2-char indent matching body font size)
+
 ### 1.5 Math Equation Specification (Critical)
 
 Ask whether the document contains equations. If yes, confirm:
@@ -89,6 +104,7 @@ After collecting all requirements, output this **exact table** and ask the user 
 | H4 Format (if any)| [fill in, or "N/A"] |
 | Body Text         | Font: [ ], Size: [ ], Line spacing: [ ], Indent/Align: [ ] |
 | Math Equations    | [None / Inline+Display, Display centered, with/without numbering] |
+| References         | [Yes: GB/T 7714, N items / No] |
 ```
 
 Ask: "Please confirm the above format requirements are correct. If so, provide the
@@ -106,7 +122,8 @@ running the bundled Python script.
 ### Usage
 
 ```bash
-python3 scripts/generate_docx.py \
+cd DocSmith/
+python3 -m scripts.generate_docx \
   --output <output-file.docx> \
   --config <config.json> \
   --content <content.md>

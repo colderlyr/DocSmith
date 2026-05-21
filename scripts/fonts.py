@@ -24,12 +24,14 @@ def to_pt(size):
 
 
 def set_run_font(run, font_cn, font_west, size_pt, bold=False, italic=False, color=None):
-    """Set font properties with east-asia/western font separation."""
+    """Set font properties with east-asia/western font separation.
+    If color is None, the default (inherited from style) is kept.
+    Pass color=(0,0,0) to force black."""
     run.font.size = Pt(size_pt)
     run.font.name = font_west
     run.bold = bold
     run.italic = italic
-    if color:
+    if color is not None:
         run.font.color.rgb = RGBColor(*color)
     rPr = run._r.get_or_add_rPr()
     rFonts = rPr.find(qn('w:rFonts'))
@@ -43,15 +45,20 @@ def set_run_font(run, font_cn, font_west, size_pt, bold=False, italic=False, col
 
 
 def set_para_fmt(para, line_spacing=1.5, first_indent=None, alignment=None,
-                 space_before=0, space_after=0):
-    """Set paragraph formatting. Forces space_before/after to 0 by default."""
+                 space_before=0, space_after=0, font_size_pt=None):
+    """Set paragraph formatting. Forces space_before/after to 0 by default.
+    When first_indent='2chars', computes Pt(font_size_pt * 2) for accurate
+    Chinese 2-character indent based on actual font size (e.g. 12pt → 24pt)."""
     pf = para.paragraph_format
     pf.line_spacing = float(line_spacing)
     pf.space_before = Pt(space_before)
     pf.space_after = Pt(space_after)
     if first_indent == "2chars":
-        pf.first_line_indent = Cm(0.74)
-    elif first_indent:
+        if font_size_pt is not None:
+            pf.first_line_indent = Pt(font_size_pt * 2)
+        else:
+            pf.first_line_indent = Cm(0.74)  # fallback
+    elif first_indent is not None:
         pf.first_line_indent = first_indent
     amap = {"left": 0, "center": 1, "right": 2, "justify": 3}
     if alignment in amap:

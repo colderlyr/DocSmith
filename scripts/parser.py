@@ -84,6 +84,28 @@ def parse_markdown(text):
             txt = hm.group(2).strip()
             txt = re.sub(r'\*\*(.+?)\*\*', r'\1', txt)
             txt = re.sub(r'\*(.+?)\*', r'\1', txt)
+            # Detect "参考文献" heading (level 2) followed by numbered references
+            if lvl == 2 and '参考文献' in txt:
+                i += 1
+                # Collect numbered reference items [1] ... [2] ...
+                ref_items = []
+                while i < len(lines):
+                    ref_line = lines[i].strip()
+                    ref_match = re.match(r'^\[(\d+)\]\s+(.+)', ref_line)
+                    if ref_match:
+                        ref_items.append(ref_match.group(2).strip())
+                        i += 1
+                    elif not ref_line:
+                        i += 1
+                    else:
+                        break
+                if ref_items:
+                    # Only add references block — add_reference_section creates its own Heading 1
+                    blocks.append(('references', 0, '', {'items': ref_items}))
+                else:
+                    # No reference items found — treat as normal heading
+                    blocks.append(('heading', lvl, txt, None))
+                continue
             blocks.append(('heading', lvl, txt, None))
             i += 1
             continue

@@ -18,7 +18,8 @@ from .fonts import to_pt, set_run_font, set_para_fmt, add_run
 from .omml import add_display_eq
 from .parser import parse_markdown, DocContext
 from .elements import (setup_page, add_heading, add_table, add_table_caption,
-                       process_inline_formatting, _add_simple_text)
+                       process_inline_formatting, _add_simple_text,
+                       add_reference_section)
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +35,8 @@ def build_document(config, md_text):
     table_cfg = config.get("table", {})
     ctx = DocContext()
     blocks = parse_markdown(md_text)
+    # Compute body font size in pt for accurate 2-char indent
+    body_font_size_pt = to_pt(body_cfg.get("size", 12))
 
     # ---- Pre-scan: register all table labels with forward-looking numbers ----
     tnum = 0
@@ -98,8 +101,13 @@ def build_document(config, md_text):
             para = doc.add_paragraph(style='Normal')
             set_para_fmt(para, body_cfg.get("line_spacing", 1.5),
                         body_cfg.get("first_line_indent"),
-                        body_cfg.get("alignment", "justify"))
+                        body_cfg.get("alignment", "justify"),
+                        font_size_pt=body_font_size_pt)
             process_inline_formatting(para, text, body_cfg, ctx)
+            prev_blank = False
+
+        elif btype == 'references':
+            add_reference_section(doc, meta['items'], body_cfg)
             prev_blank = False
 
     return doc

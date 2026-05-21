@@ -32,28 +32,37 @@ def setup_page(doc, cfg):
 # ---------------------------------------------------------------------------
 
 def heading_prefix(level, cfg, ctx):
-    """Generate auto-numbering prefix like '1.', '1.1', '一、' etc."""
+    """Generate auto-numbering prefix like '1.', '1.1', '一、' etc.
+    Numbering family is determined by h1's numbering config and applied
+    consistently across all heading levels."""
     key = f"h{level}"
-    style = cfg.get(key, {}).get("numbering", "")
-    if not style:
+    hc = cfg.get(key, {})
+    if not hc.get("numbering"):
         return ""
     ctx.heading_counters[level - 1] += 1
     for i in range(level, len(ctx.heading_counters)):
         ctx.heading_counters[i] = 0
     c = ctx.heading_counters
-    if style == "1.":
-        return ".".join(str(c[i]) for i in range(level) if c[i] > 0) + (". " if level == 1 else " ")
-    if style == "一、":
+    # Detect numbering family from h1
+    family = cfg.get("h1", {}).get("numbering", "")
+    if family == "1.":
+        if level == 1:
+            return f"{c[0]}. "
+        else:
+            parts = [str(c[i]) for i in range(level) if c[i] > 0]
+            return ".".join(parts) + " "
+    if family == "一、":
         cn = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
         return f"{cn[c[0]] if c[0] < len(cn) else str(c[0])}、"
-    if style == "（一）":
+    if family == "（一）":
         cn = ["", "一", "二", "三", "四", "五"]
         return f"（{cn[c[1]] if c[1] < len(cn) else str(c[1])}）"
     return ""
 
 
 def add_heading(doc, level, text, headings_cfg, ctx):
-    """Add a heading paragraph bound to Word's Heading N style."""
+    """Add a heading paragraph bound to Word's Heading N style.
+    Forces black font color (overrides Word's default blue) and no indent."""
     key = f"h{level}"
     hc = headings_cfg.get(key)
     if not hc:
@@ -63,11 +72,14 @@ def add_heading(doc, level, text, headings_cfg, ctx):
     para = doc.add_paragraph(style=style_name)
     run = para.add_run(prefix + text)
     set_run_font(run, hc.get("font", "SimHei"), hc.get("font_west", "Arial"),
-                 to_pt(hc.get("size", 16)), bold=hc.get("bold", True))
+                 to_pt(hc.get("size", 16)), bold=hc.get("bold", True),
+                 color=(0, 0, 0))
     pf = para.paragraph_format
     pf.line_spacing = hc.get("line_spacing", 1.5)
     pf.space_before = Pt(0)
     pf.space_after = Pt(0)
+    pf.first_line_indent = Pt(0)
+    pf.left_indent = Pt(0)
     return para
 
 
@@ -132,18 +144,19 @@ def add_table(doc, headers, rows, table_cfg, caption_text, ctx, label=None):
 
 
 def add_table_caption(doc, caption_text, table_cfg, tnum, ctx, anchor=None):
-    """Add '表 1 标题文本' caption paragraph bound to Word's Caption style."""
+    """Add '表 1 标题文本' caption paragraph bound to Word's Caption style.
+    Chinese font forced to 黑体 via eastAsia XML, size defaults to 小五 (9pt)."""
     if anchor is None:
         anchor = f"tab{tnum}"
     num_fmt = table_cfg.get("numbering", "表 {n} ")
     prefix = num_fmt.replace("{n}", str(tnum))
     para = doc.add_paragraph(style='Caption')
     run = para.add_run(prefix + caption_text)
-    cfont = table_cfg.get("caption_font", "SimHei")
+    cfont = table_cfg.get("caption_font", "黑体")
     cfont_w = table_cfg.get("caption_font_west", "Arial")
-    csize = to_pt(table_cfg.get("caption_size", "小四"))
+    csize = to_pt(table_cfg.get("caption_size", "小五"))
     cbold = table_cfg.get("caption_bold", True)
-    set_run_font(run, cfont, cfont_w, csize, bold=cbold)
+    set_run_font(run, cfont, cfont_w, csize, bold=cbold, color=(0, 0, 0))
     para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     add_bookmark_to_para(para, anchor, ctx.next_bookmark(anchor))
     pf = para.paragraph_format
@@ -219,3 +232,52 @@ def _add_formatted_text(para, text, font_cn, font_west, size):
 
         run = para.add_run(content)
         set_run_font(run, font_cn, font_west, to_pt(size), bold, italic)
+
+
+# ---------------------------------------------------------------------------
+# References (GB/T 7714)
+# ---------------------------------------------------------------------------
+
+def add_reference_section(doc, ref_items, body_cfg):
+    """Add a GB/T 7714 formatted reference list at end of document.
+    Title '参考文献' uses Heading 1 style (black, no indent).
+    Each reference is a Normal paragraph with hanging indent."""
+    headings_cfg = {
+        "h1": {"font": "SimHei", "font_west": "Arial", "size": "三号", "bold": True}
+    }
+    from .parser import DocContext
+    ctx = DocContext()
+    # "参考文献" as Heading 1
+    level = 1
+    style_name = f"Heading {level}"
+    para = doc.add_paragraph(style=style_name)
+    hc = headings_cfg["h1"]
+    run = para.add_run("参考文献")
+    set_run_font(run, hc.get("font", "SimHei"), hc.get("font_west", "Arial"),
+                 to_pt(hc.get("size", 16)), bold=hc.get("bold", True),
+                 color=(0, 0, 0))  # force black
+    pf = para.paragraph_format
+    pf.line_spacing = 1.5
+    pf.space_before = Pt(12)
+    pf.space_after = Pt(6)
+    pf.first_line_indent = Pt(0)
+    pf.left_indent = Pt(0)
+
+    # Each reference as Normal paragraph with hanging indent
+    for item in ref_items:
+        ref_para = doc.add_paragraph(style='Normal')
+        bfont = body_cfg.get("font", "SimSun")
+        bfont_w = body_cfg.get("font_west", "Times New Roman")
+        bsize_val = body_cfg.get("size", "小五")
+        bsize = to_pt(bsize_val)
+        run = ref_para.add_run(item)
+        set_run_font(run, bfont, bfont_w, bsize, color=(0, 0, 0))
+        rpf = ref_para.paragraph_format
+        rpf.line_spacing = 1.5
+        rpf.space_before = Pt(0)
+        rpf.space_after = Pt(0)
+        rpf.first_line_indent = Pt(0)
+        # Hanging indent: left indent = 2 chars, first line = -2 chars
+        hang = Pt(bsize * 2)
+        rpf.left_indent = hang
+        rpf.first_line_indent = -hang
