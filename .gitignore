@@ -1,4 +1,12 @@
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+venv/
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
 *.docx
+/tmp/

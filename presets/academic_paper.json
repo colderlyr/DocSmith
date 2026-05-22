@@ -1,0 +1,32 @@
+{
+  "_name": "Academic Paper (学术论文)",
+  "_description": "A4, single column, SimHei headings, SimSun body, display equations centered with numbering",
+  "page": {
+    "size": "A4",
+    "margin_top": 2.54,
+    "margin_bottom": 2.54,
+    "margin_left": 2.54,
+    "margin_right": 2.54,
+    "columns": 1
+  },
+  "headings": {
+    "h1": { "numbering": "1.", "font": "SimHei", "font_west": "Arial", "size": 16, "bold": true, "line_spacing": 1.5 },
+    "h2": { "numbering": "1.1", "font": "SimHei", "font_west": "Arial", "size": 14, "bold": true, "line_spacing": 1.5 },
+    "h3": { "numbering": "1.1.1", "font": "SimHei", "font_west": "Arial", "size": 13, "bold": true, "line_spacing": 1.5 }
+  },
+  "body": {
+    "font": "SimSun",
+    "font_west": "Times New Roman",
+    "size": 12,
+    "line_spacing": 1.5,
+    "first_line_indent": "2chars",
+    "alignment": "justify"
+  },
+  "equations": {
+    "display": "center",
+    "numbering": true,
+    "numbering_format": "({n})",
+    "numbering_font": "Times New Roman",
+    "numbering_size": 12
+  }
+}

@@ -15,6 +15,10 @@ try:
     HAS_LATEX2WORD = True
 except ImportError:
     HAS_LATEX2WORD = False
+    import sys
+    print("DocSmith: latex2word not installed. Equations will show as red placeholders.",
+          file=sys.stderr)
+    print("  Install with: pip3 install latex2word", file=sys.stderr)
 
 
 def build_ommath_para(omml_element):
@@ -47,20 +51,37 @@ def append_omml(para, latex_str, display=True):
             para._element.append(omml)
             return omml
     except Exception:
-        run = para.add_run(f"[Eq: {latex_str[:40]}]")
+        run = para.add_run(f"[Eq: {latex_str[:60]}]")
         run.font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
         return None
 
 
-def add_display_eq(para, latex_str, eq_cfg, eq_num, ctx):
-    """Add a display equation. Numbered: tab-stop layout (eq centered, number right).
-    Unnumbered: paragraph centered, OMML only."""
+def _compute_tab_stops(column_width_cm):
+    """Compute center and right tab stops for equation numbering layout.
+    column_width_cm is the usable width of a single column (after margins)."""
+    center_tab = column_width_cm / 2.0
+    right_tab = column_width_cm
+    return Cm(center_tab), Cm(right_tab)
+
+
+def add_display_eq(para, latex_str, eq_cfg, eq_num, ctx, column_width_cm=None):
+    """Add a display equation.
+    Numbered: tab-stop layout with equation centered, number right-aligned.
+    Unnumbered: paragraph centered, OMML only.
+
+    column_width_cm is the usable column width (page width minus margins,
+    divided by number of columns minus gaps). If None, falls back to A4
+    single-column default (15.92cm).
+    """
+    if column_width_cm is None:
+        column_width_cm = 15.92  # A4 single-column fallback
+
     if eq_cfg.get("numbering"):
-        # Tab-stop layout: [TAB→center] [equation] [TAB→right] [(1)]
         para.alignment = WD_ALIGN_PARAGRAPH.LEFT
         pf = para.paragraph_format
-        pf.tab_stops.add_tab_stop(Cm(7.96), alignment=WD_ALIGN_PARAGRAPH.CENTER)
-        pf.tab_stops.add_tab_stop(Cm(15.92), alignment=WD_ALIGN_PARAGRAPH.RIGHT)
+        center_stop, right_stop = _compute_tab_stops(column_width_cm)
+        pf.tab_stops.add_tab_stop(center_stop, alignment=WD_ALIGN_PARAGRAPH.CENTER)
+        pf.tab_stops.add_tab_stop(right_stop, alignment=WD_ALIGN_PARAGRAPH.RIGHT)
         para.add_run("\t")
         append_omml(para, latex_str.strip(), display=True)
         fmt = eq_cfg.get("numbering_format", "({n})")
@@ -77,16 +98,14 @@ def add_display_eq(para, latex_str, eq_cfg, eq_num, ctx):
 
 
 def add_bookmark_to_run(run, name, bmid):
-    """Append bookmark start/end around the run's element."""
-    parent = run._r.getparent()
-    idx = list(parent).index(run._r)
+    """Wrap a run element with bookmark start/end tags."""
     bs = OxmlElement('w:bookmarkStart')
     bs.set(qn('w:id'), str(bmid))
     bs.set(qn('w:name'), name)
     be = OxmlElement('w:bookmarkEnd')
     be.set(qn('w:id'), str(bmid))
-    parent.insert(idx, bs)
-    parent.insert(idx + 2, be)
+    run._r.addprevious(bs)
+    run._r.addnext(be)
 
 
 def add_bookmark_to_para(para, name, bmid):
@@ -101,7 +120,7 @@ def add_bookmark_to_para(para, name, bmid):
 
 
 def add_internal_hyperlink(para, anchor, display_text, font_cn, font_west, size):
-    """Add a clickable internal cross-reference like '表 1'."""
+    """Add a clickable internal cross-reference (e.g. '表 1')."""
     hl = OxmlElement('w:hyperlink')
     hl.set(qn('w:anchor'), anchor)
     r = OxmlElement('w:r')
@@ -110,7 +129,7 @@ def add_internal_hyperlink(para, anchor, display_text, font_cn, font_west, size)
     rs.set(qn('w:val'), 'Hyperlink')
     rPr.append(rs)
     sz = OxmlElement('w:sz')
-    sz.set(qn('w:val'), str(int(to_pt(size) * 2)))
+    sz.set(qn('w:val'), str(round(to_pt(size) * 2)))
     rPr.append(sz)
     r.append(rPr)
     t = OxmlElement('w:t')

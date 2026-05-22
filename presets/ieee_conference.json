@@ -1,0 +1,33 @@
+{
+  "_name": "IEEE Conference Paper (IEEE 会议论文)",
+  "_description": "US Letter, two-column, Roman numerals, Times New Roman 10pt, equation numbering",
+  "page": {
+    "size": "letter",
+    "margin_top": 1.91,
+    "margin_bottom": 2.54,
+    "margin_left": 1.59,
+    "margin_right": 1.59,
+    "columns": 2,
+    "column_gap": 0.63
+  },
+  "headings": {
+    "h1": { "numbering": "I.", "font": "Times New Roman", "font_west": "Times New Roman", "size": 10, "bold": true, "line_spacing": 1.0 },
+    "h2": { "numbering": "A.", "font": "Times New Roman", "font_west": "Times New Roman", "size": 10, "bold": true, "line_spacing": 1.0 },
+    "h3": { "numbering": "1)", "font": "Times New Roman", "font_west": "Times New Roman", "size": 10, "bold": true, "line_spacing": 1.0 }
+  },
+  "body": {
+    "font": "Times New Roman",
+    "font_west": "Times New Roman",
+    "size": 10,
+    "line_spacing": 1.0,
+    "first_line_indent": "0.14in",
+    "alignment": "justify"
+  },
+  "equations": {
+    "display": "center",
+    "numbering": true,
+    "numbering_format": "({n})",
+    "numbering_font": "Times New Roman",
+    "numbering_size": 10
+  }
+}

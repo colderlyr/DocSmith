@@ -1,0 +1,29 @@
+{
+  "_name": "Standard Report (标准报告)",
+  "_description": "A4, single column, Chinese numbering (一、), KaiTi H3, no equation numbering",
+  "page": {
+    "size": "A4",
+    "margin_top": 2.54,
+    "margin_bottom": 2.54,
+    "margin_left": 2.54,
+    "margin_right": 2.54,
+    "columns": 1
+  },
+  "headings": {
+    "h1": { "numbering": "一、", "font": "SimHei", "font_west": "Arial", "size": 16, "bold": true, "line_spacing": 1.5 },
+    "h2": { "numbering": "（一）", "font": "SimHei", "font_west": "Arial", "size": 14, "bold": true, "line_spacing": 1.5 },
+    "h3": { "numbering": "1.", "font": "KaiTi", "font_west": "Arial", "size": 13, "bold": true, "line_spacing": 1.5 }
+  },
+  "body": {
+    "font": "SimSun",
+    "font_west": "Arial",
+    "size": 12,
+    "line_spacing": 1.5,
+    "first_line_indent": "2chars",
+    "alignment": "justify"
+  },
+  "equations": {
+    "display": "center",
+    "numbering": false
+  }
+}
