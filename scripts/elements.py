@@ -18,7 +18,8 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 from .fonts import to_pt, set_run_font, set_para_fmt, add_run
-from .omml import append_omml, add_internal_hyperlink, add_bookmark_to_para
+from .equations import append_omml, add_internal_hyperlink, add_bookmark_to_para
+from .numbering import heading_prefix
 from .parser import resolve_cross_ref
 
 
@@ -93,171 +94,6 @@ def set_para_single_column(para):
         pPr.remove(old)
     cnt = OxmlElement('w:cnt')
     pPr.append(cnt)
-
-
-# ---------------------------------------------------------------------------
-# Heading numbering families
-# ---------------------------------------------------------------------------
-
-def _roman(n):
-    """Convert integer to uppercase Roman numeral."""
-    vals = [(1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'),
-            (100, 'C'), (90, 'XC'), (50, 'L'), (40, 'XL'),
-            (10, 'X'), (9, 'IX'), (5, 'V'), (4, 'IV'), (1, 'I')]
-    result = ''
-    for v, r in vals:
-        while n >= v:
-            result += r
-            n -= v
-    return result
-
-
-def _letter(n):
-    """Convert integer to uppercase letter: 1→A, 2→B, ..., 26→Z, 27→AA."""
-    result = ''
-    while n > 0:
-        n, rem = divmod(n - 1, 26)
-        result = chr(ord('A') + rem) + result
-    return result
-
-
-def _cn_num(n):
-    """Convert integer 1-10 to Chinese numeral; >10 returns str(n)."""
-    cn = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
-    return cn[n] if n < len(cn) else str(n)
-
-
-def _dot_fallback(counters, level):
-    """Generate '1.', '1.1', '1.1.1' numbering from counters (generic fallback)."""
-    parts = [str(counters[i]) for i in range(level) if counters[i] > 0]
-    return ".".join(parts) + " "
-
-
-def heading_prefix(level, cfg, ctx):
-    """Generate auto-numbering prefix based on H1 numbering family.
-
-    Supported families and their expansion:
-      "1."      → H1: "1.", H2: "1.1", H3: "1.1.1", H4: "1.1.1.1"
-      "一、"     → H1: "一、", H2: "（一）", H3+: dot fallback
-      "I."      → H1: "I.", H2: "A.", H3: "1)", H4: "a)"
-      "i."      → H1: "i.", H2: "a.", H3+: dot fallback
-      "(1)"     → H1: "(1)", H2: "(a)", H3+: dot fallback
-      "1)"      → H1: "1)", H2: "a)", H3: "i)", H4: dot fallback
-      None/""   → no numbering
-
-    Setting H2 numbering to something non-standard overrides the family expansion.
-    """
-    key = f"h{level}"
-    hc = cfg.get(key, {})
-    if not hc.get("numbering"):
-        return ""
-
-    # Increment counter for this level, reset deeper levels
-    ctx.heading_counters[level - 1] += 1
-    for i in range(level, len(ctx.heading_counters)):
-        ctx.heading_counters[i] = 0
-    c = ctx.heading_counters
-
-    family = cfg.get("h1", {}).get("numbering", "")
-    h2_numbering = cfg.get("h2", {}).get("numbering", "")
-
-    # Allow h2 to override the family-derived expansion
-    if level >= 2 and h2_numbering and h2_numbering != _derive_h2_family(family):
-        result = _format_by_style(h2_numbering, c, level)
-        if result:
-            return result
-
-    if family == "1.":
-        return _dot_fallback(c, level)
-
-    elif family == "一、":
-        if level == 1:
-            return f"{_cn_num(c[0])}、"
-        elif level == 2:
-            return f"（{_cn_num(c[1])}）"
-        else:
-            return _dot_fallback(c, level)
-
-    elif family == "（一）":
-        if level == 1:
-            return f"（{_cn_num(c[0])}）"
-        elif level == 2:
-            return f"{c[1]}. "
-        else:
-            return _dot_fallback(c, level)
-
-    elif family == "I.":
-        if level == 1:
-            return f"{_roman(c[0])}. "
-        elif level == 2:
-            return f"{_letter(c[1])}. "
-        elif level == 3:
-            return f"{c[2]}) "
-        elif level == 4:
-            return f"{_letter(c[3]).lower()}) "
-        else:
-            return _dot_fallback(c, level)
-
-    elif family == "i.":
-        if level == 1:
-            return f"{_roman(c[0]).lower()}. "
-        elif level == 2:
-            return f"{_letter(c[1]).lower()}. "
-        else:
-            return _dot_fallback(c, level)
-
-    elif family == "1)":
-        if level == 1:
-            return f"{c[0]}) "
-        elif level == 2:
-            return f"{_letter(c[1]).lower()}) "
-        elif level == 3:
-            return f"{_roman(c[2]).lower()}) "
-        else:
-            return _dot_fallback(c, level)
-
-    elif family in ("(1)", "(a)"):
-        result = _format_by_style(family, c, level)
-        if result:
-            return result
-        return _dot_fallback(c, level)
-
-    # Unknown family → dot fallback
-    return _dot_fallback(c, level)
-
-
-def _derive_h2_family(h1_family):
-    """Derive the default H2 numbering from the H1 family."""
-    mapping = {"1.": "1.1", "一、": "（一）", "I.": "A.", "i.": "a.",
-               "(1)": "(a)", "1)": "a)", "（一）": "1."}
-    return mapping.get(h1_family, "")
-
-
-def _format_by_style(style, counters, level):
-    """Format a counter for a specific numbering style.
-    Handles: (1), (a), 1), a), i), 1., 1.1, A.
-    Returns empty string for unrecognized styles."""
-    c = counters
-    idx = level - 1
-
-    if style == "(1)":
-        return f"({c[idx]}) "
-    elif style == "(a)":
-        return f"({_letter(c[idx]).lower()}) "
-    elif style == "1)":
-        return f"{c[idx]}) "
-    elif style == "a)":
-        return f"{_letter(c[idx]).lower()}) "
-    elif style == "i)":
-        return f"{_roman(c[idx]).lower()}) "
-    elif style == "A.":
-        return f"{_letter(c[idx])}. "
-    elif style == "I.":
-        return f"{_roman(c[idx])}. "
-    elif re.match(r'^[\d.]+$', style):
-        # Dot-separated numeric pattern: "1.", "1.1", etc.
-        return _dot_fallback(counters, level)
-    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -417,7 +253,7 @@ def process_inline_formatting(para, text, body_cfg, ctx):
 
 def _add_formatted_text(para, text, font_cn, font_west, size):
     """Add text runs with **bold** and *italic* support."""
-    parts = re.split(r'(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*)', text)
+    parts = re.split(r'(\*\*\*.+?\*\*\*|\*\*.+?\*\*|\*.+?\*)', text)
     for part in parts:
         if not part:
             continue
@@ -465,20 +301,20 @@ def add_section_body_para(doc, text, body_cfg, section_type, ctx):
 # References (GB/T 7714)
 # ---------------------------------------------------------------------------
 
-def add_reference_section(doc, ref_items, body_cfg):
-    """Add a GB/T 7714 formatted reference list at end of document.
-    Title '参考文献' uses Heading 1 style (black, no indent).
+def add_reference_section(doc, ref_items, body_cfg, headings_cfg=None, ref_heading_level=2):
+    """Add a reference list. Heading level is configurable (default H2).
     Each reference is a Normal paragraph with hanging indent."""
-    headings_cfg = {
-        "h1": {"font": "SimHei", "font_west": "Arial", "size": "三号", "bold": True}
-    }
-    from .parser import DocContext
+    if headings_cfg is None:
+        headings_cfg = {
+            "h2": {"font": "SimHei", "font_west": "Arial", "size": "三号", "bold": True}
+        }
+    key = f"h{ref_heading_level}"
+    hc = headings_cfg.get(key, {"font": "SimHei", "font_west": "Arial", "size": "三号", "bold": True})
+
+    from .context import DocContext
     ctx = DocContext()
-    # "参考文献" as Heading 2 (matching ## markdown level)
-    level = 2
-    style_name = f"Heading {level}"
+    style_name = f"Heading {ref_heading_level}"
     para = doc.add_paragraph(style=style_name)
-    hc = headings_cfg["h1"]
     run = para.add_run("参考文献")
     set_run_font(run, hc.get("font", "SimHei"), hc.get("font_west", "Arial"),
                  to_pt(hc.get("size", 16)), bold=hc.get("bold", True),
