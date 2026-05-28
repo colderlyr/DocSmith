@@ -194,11 +194,8 @@ running the bundled Python script.
 ### Usage
 
 ```bash
-cd DocSmith/
-python3 -m scripts.generate_docx \
-  --output <output-file.docx> \
-  --config <config.json> \
-  --content <content.md>
+cd docsmith/
+python3 -m scripts --output <output-file.docx> --config <config.json> --content <content.md>
 ```
 
 The script accepts:
