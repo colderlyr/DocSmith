@@ -276,11 +276,15 @@ class BlockRenderer:
         if self.ctx.citation_map:
             ordered = [None] * len(self.ctx.citation_map)
             uncited = []
+            seen_keys = set()
             for item in ref_items:
                 key_match = re.match(r'^\[@(\w+)\]\s*(.+)', item)
                 if key_match:
                     key = key_match.group(1)
                     text = key_match.group(2)
+                    if key in seen_keys:
+                        continue  # skip duplicate reference entries
+                    seen_keys.add(key)
                     if key in self.ctx.citation_map:
                         idx = self.ctx.citation_map[key] - 1
                         if idx < len(ordered):
