@@ -61,6 +61,11 @@ class TwoPassBuilder:
                         self.ctx.equation_counter += 1
                         self._register_latex_labels(content)
 
+            elif btype == 'figure_caption' and meta and meta.get('label'):
+                self.ctx.figure_counter += 1
+                self.ctx.register_label(meta['label'], self.ctx.figure_counter,
+                                        f"fig{self.ctx.figure_counter}")
+
         self.ctx.reset_counters()
 
     def _register_latex_labels(self, latex_str):

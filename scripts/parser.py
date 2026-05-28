@@ -146,6 +146,15 @@ def parse_markdown(text):
             i += 1
             continue
 
+        # Figure caption: [图:label] caption text
+        fig_match = re.match(r'^\[图:(\w+)\]\s*(.+)', line.strip())
+        if fig_match:
+            blocks.append(('figure_caption', 0, '', {
+                'label': fig_match.group(1), 'caption': fig_match.group(2).strip()
+            }))
+            i += 1
+            continue
+
         # Heading
         hm = re.match(r'^(#{1,4})\s+(.+)', line)
         if hm:
@@ -175,9 +184,16 @@ def parse_markdown(text):
                 ref_items = []
                 while i < len(lines):
                     ref_line = lines[i].strip()
-                    ref_match = re.match(r'^\[(\d+)\]\s+(.+)', ref_line)
+                    # Match [@key] text or [1] text patterns
+                    ref_match = re.match(r'^\[(@\w+|\d+)\]\s+(.+)', ref_line)
                     if ref_match:
-                        ref_items.append(ref_match.group(2).strip())
+                        # Keep the prefix for citation-keyed refs, strip for numbered
+                        prefix = ref_match.group(1)
+                        text = ref_match.group(2).strip()
+                        if prefix.startswith('@'):
+                            ref_items.append(f"[{prefix}] {text}")
+                        else:
+                            ref_items.append(text)
                         i += 1
                     elif not ref_line:
                         i += 1
@@ -241,7 +257,7 @@ def parse_markdown(text):
 
 def resolve_cross_ref(ref_str, body_cfg, ctx):
     """Parse \\ref{type:id} and return (display_text, anchor) or (None, None)."""
-    m = re.match(r'\\ref\{(tab|eq):(\S+?)\}', ref_str)
+    m = re.match(r'\\ref\{(tab|eq|fig):(\S+?)\}', ref_str)
     if not m:
         return None, None
     ref_type, ref_id = m.group(1), m.group(2)
@@ -254,6 +270,14 @@ def resolve_cross_ref(ref_str, body_cfg, ctx):
         else:
             number, anchor = ref_id, f"tab{ref_id}"
         display = f"{xref.get('table_prefix', '表')} {number}"
+        return display, anchor
+
+    elif ref_type == "fig":
+        if ref_id in ctx.label_map:
+            number, anchor = ctx.label_map[ref_id]
+        else:
+            number, anchor = ref_id, f"fig{ref_id}"
+        display = f"{xref.get('figure_prefix', '图')} {number}"
         return display, anchor
 
     elif ref_type == "eq":

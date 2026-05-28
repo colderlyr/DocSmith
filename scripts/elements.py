@@ -222,56 +222,10 @@ def _add_simple_text(para, text, font_cn, font_west, size, bold=False, italic=Fa
 
 
 def process_inline_formatting(para, text, body_cfg, ctx):
-    """Process cross-refs, inline LaTeX, and bold/italic in a single ordered pass."""
-    bfont = body_cfg.get("font", "SimSun")
-    bfont_w = body_cfg.get("font_west", "Times New Roman")
-    bsize = body_cfg.get("size", 12)
-
-    # Split text into segments: \ref{...}, $latex$, and plain text
-    segments = re.split(r'(\\ref\{(?:tab|eq):\S+?\}|\$.+?\$)', text)
-
-    for seg in segments:
-        if not seg:
-            continue
-
-        # Cross-reference
-        if seg.startswith('\\ref{'):
-            disp, anchor = resolve_cross_ref(seg, body_cfg, ctx)
-            if disp:
-                add_internal_hyperlink(para, anchor, disp, bfont, bfont_w, bsize)
-
-        # Inline LaTeX
-        elif seg.startswith('$') and seg.endswith('$'):
-            latex_str = seg.strip('$')
-            if latex_str:
-                append_omml(para, latex_str, display=False)
-
-        # Plain text (may contain bold/italic markers)
-        else:
-            _add_formatted_text(para, seg, bfont, bfont_w, bsize)
-
-
-def _add_formatted_text(para, text, font_cn, font_west, size):
-    """Add text runs with **bold** and *italic* support."""
-    parts = re.split(r'(\*\*\*.+?\*\*\*|\*\*.+?\*\*|\*.+?\*)', text)
-    for part in parts:
-        if not part:
-            continue
-        content = part
-        bold = False
-        italic = False
-        bi = re.match(r'\*\*\*(.+?)\*\*\*', part)
-        bm = re.match(r'\*\*(.+?)\*\*', part)
-        im = re.match(r'\*(.+?)\*', part)
-        if bi:
-            content, bold, italic = bi.group(1), True, True
-        elif bm:
-            content, bold = bm.group(1), True
-        elif im:
-            content, italic = im.group(1), True
-
-        run = para.add_run(content)
-        set_run_font(run, font_cn, font_west, to_pt(size), bold, italic)
+    """Process cross-refs, inline LaTeX, citations, and bold/italic.
+    Delegates to InlineProcessor pipeline (lazy import to avoid circular deps)."""
+    from .renderer import InlineProcessor
+    InlineProcessor.process(para, text, body_cfg, ctx)
 
 
 # ---------------------------------------------------------------------------
