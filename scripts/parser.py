@@ -21,28 +21,8 @@ State Flag Management (critical pattern — DO NOT break):
 
 import re
 
-from .latex_utils import parse_equation_block
-
-
-class DocContext:
-    """Tracks heading counters, table/equation numbers, bookmarks, and labels."""
-
-    def __init__(self):
-        self.heading_counters = [0, 0, 0, 0]
-        self.table_counter = 0
-        self.equation_counter = 0
-        self.figure_counter = 0
-        self._bookmark_id = 0
-        self.label_map = {}  # label → (number, bookmark_anchor)
-        self.list_counters = [0, 0, 0, 0]  # ordered list counters per level
-
-    def next_bookmark(self, name):
-        self._bookmark_id += 1
-        return self._bookmark_id
-
-    def register_label(self, label, number, anchor):
-        """Map a user label (e.g. 'exp_params') to its number and bookmark anchor."""
-        self.label_map[label] = (number, anchor)
+from .context import DocContext
+from .equations import parse_equation_block
 
 
 def parse_markdown(text):
@@ -224,7 +204,9 @@ def parse_markdown(text):
             indent = len(ol_match.group(1))
             style = ol_match.group(2).strip()
             content = ol_match.group(3).strip()
-            blocks.append(('ordered_list_item', indent // 2, content, {
+            unit = 2 if indent < 4 else 4
+            level = indent // unit
+            blocks.append(('ordered_list_item', level, content, {
                 'style': style, 'section': current_section
             }))
             i += 1
@@ -234,7 +216,9 @@ def parse_markdown(text):
         lm = re.match(r'^(\s*)[-*]\s+(.+)', line)
         if lm:
             indent = len(lm.group(1))
-            blocks.append(('list_item', indent // 2, lm.group(2).strip(), {
+            unit = 2 if indent < 4 else 4
+            level = indent // unit
+            blocks.append(('list_item', level, lm.group(2).strip(), {
                 'section': current_section
             }))
             i += 1
