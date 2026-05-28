@@ -281,7 +281,7 @@ def add_reference_section(doc, ref_items, body_cfg, headings_cfg=None, ref_headi
     pf.left_indent = Pt(0)
 
     # Each reference as Normal paragraph with hanging indent
-    for item in ref_items:
+    for i, item in enumerate(ref_items):
         ref_para = doc.add_paragraph(style='Normal')
         bfont = body_cfg.get("font", "SimSun")
         bfont_w = body_cfg.get("font_west", "Times New Roman")
@@ -293,10 +293,18 @@ def add_reference_section(doc, ref_items, body_cfg, headings_cfg=None, ref_headi
         rpf.line_spacing = 1.5
         rpf.space_before = Pt(0)
         rpf.space_after = Pt(0)
-        # Hanging indent: second+ lines align with text after [N] prefix
-        # Cm(1.0) comfortably covers [1] through [99] at 小五 size
-        rpf.left_indent = Cm(1.0)
-        rpf.first_line_indent = Cm(-1.0)
+
+        # Hanging indent: first line at margin, wrapped lines indented.
+        # Uses w:firstLine (negative) for maximum Word compatibility.
+        # Pt(22) ≈ 0.78cm covers [1]–[99] prefix at 小五 (9pt).
+        pPr = ref_para._p.get_or_add_pPr()
+        for old in pPr.findall(qn('w:ind')):
+            pPr.remove(old)
+        ind = OxmlElement('w:ind')
+        left_twips = str(22 * 20)  # 22pt → 440 twips
+        ind.set(qn('w:left'), left_twips)
+        ind.set(qn('w:firstLine'), '-' + left_twips)
+        pPr.insert(0, ind)
 
 
 # ---------------------------------------------------------------------------
