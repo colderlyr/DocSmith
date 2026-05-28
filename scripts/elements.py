@@ -301,7 +301,7 @@ def add_reference_section(doc, ref_items, body_cfg, headings_cfg=None, ref_headi
         for old in pPr.findall(qn('w:ind')):
             pPr.remove(old)
         ind = OxmlElement('w:ind')
-        left_twips = str(22 * 20)  # 22pt → 440 twips
+        left_twips = str(18 * 20)  # 18pt → 360 twips, matches [N] prefix at 小五
         ind.set(qn('w:left'), left_twips)
         ind.set(qn('w:firstLine'), '-' + left_twips)
         pPr.insert(0, ind)
