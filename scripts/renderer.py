@@ -275,6 +275,7 @@ class BlockRenderer:
         # If citation_map has entries, reorder references to match citation order
         if self.ctx.citation_map:
             ordered = [None] * len(self.ctx.citation_map)
+            uncited = []
             for item in ref_items:
                 key_match = re.match(r'^\[@(\w+)\]\s*(.+)', item)
                 if key_match:
@@ -284,10 +285,17 @@ class BlockRenderer:
                         idx = self.ctx.citation_map[key] - 1
                         if idx < len(ordered):
                             ordered[idx] = text
-            ref_items = [r for r in ordered if r is not None] or ref_items
+                    else:
+                        uncited.append(text)
+                else:
+                    uncited.append(re.sub(r'^\[@\w+\]\s*', '', item))
+            ref_items = [r for r in ordered if r is not None] + uncited
         else:
             # Strip [@key] prefixes from items that have them
             ref_items = [re.sub(r'^\[@\w+\]\s*', '', item) for item in ref_items]
+
+        # Add [1], [2] numbering prefix to each reference
+        ref_items = [f'[{i+1}] {item}' for i, item in enumerate(ref_items)]
 
         add_reference_section(self.doc, ref_items, self.body_cfg,
                               headings_cfg=self.headings_cfg,
@@ -385,7 +393,8 @@ def _match_cross_ref(text, body_cfg, ctx):
 
 @InlineProcessor.register('citation', priority=15)
 def _match_citation(text, body_cfg, ctx):
-    """Match [@key1, @key2] citation patterns. Renders as superscript numbers."""
+    """Match [@key1, @key2] citation patterns. Renders as superscript numbers.
+    Consecutive numbers are collapsed: [1,2,3] → [1-3], [1,2,4] → [1-2,4]."""
     m = re.match(r'\[((?:@\w+(?:,\s*)?)+)\]', text)
     if not m:
         return None
@@ -394,9 +403,32 @@ def _match_citation(text, body_cfg, ctx):
     for key in keys:
         if key not in ctx.citation_map:
             ctx.citation_map[key] = len(ctx.citation_map) + 1
-        nums.append(str(ctx.citation_map[key]))
-    display = f"[{','.join(nums)}]"
+        nums.append(ctx.citation_map[key])
+    display = f"[{_collapse_nums(nums)}]"
     return len(m.group(0)), [{'text': display, 'superscript': True}]
+
+
+def _collapse_nums(nums):
+    """Collapse consecutive integers into ranges: [1,2,3,5,6] → '1-3,5-6'."""
+    if not nums:
+        return ''
+    nums = sorted(set(nums))
+    ranges = []
+    start = prev = nums[0]
+    for n in nums[1:]:
+        if n == prev + 1:
+            prev = n
+        else:
+            ranges.append((start, prev))
+            start = prev = n
+    ranges.append((start, prev))
+    parts = []
+    for s, e in ranges:
+        if s == e:
+            parts.append(str(s))
+        else:
+            parts.append(f'{s}-{e}')
+    return ','.join(parts)
 
 
 @InlineProcessor.register('inline_math', priority=20)
