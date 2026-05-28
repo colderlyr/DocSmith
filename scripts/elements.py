@@ -293,11 +293,10 @@ def add_reference_section(doc, ref_items, body_cfg, headings_cfg=None, ref_headi
         rpf.line_spacing = 1.5
         rpf.space_before = Pt(0)
         rpf.space_after = Pt(0)
-        rpf.first_line_indent = Pt(0)
-        # Hanging indent: left indent = 2 chars, first line = -2 chars
-        hang = Pt(bsize * 2)
-        rpf.left_indent = hang
-        rpf.first_line_indent = -hang
+        # Hanging indent: second+ lines align with text after [N] prefix
+        # Cm(1.0) comfortably covers [1] through [99] at 小五 size
+        rpf.left_indent = Cm(1.0)
+        rpf.first_line_indent = Cm(-1.0)
 
 
 # ---------------------------------------------------------------------------
